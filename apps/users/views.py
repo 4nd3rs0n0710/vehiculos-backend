@@ -10,6 +10,8 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from smtplib import SMTPAuthenticationError, SMTPException
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 
 
 from .serializers import RegisterSerializer, UserProfileSerializer
@@ -120,3 +122,35 @@ class PasswordRecoveryView(APIView):
             {'detail': 'Si el correo existe, recibirás un enlace de recuperación.'},
             status=status.HTTP_200_OK
         )
+
+class ResetPasswordView(APIView):
+    """Endpoint para restablecer la contraseña con el token del correo."""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        uid      = request.data.get('uid', '')
+        token    = request.data.get('token', '')
+        password = request.data.get('password', '')
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user    = User.objects.get(pk=user_id)
+
+            if not default_token_generator.check_token(user, token):
+                return Response(
+                    {'detail': 'El enlace es inválido o ha expirado.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.set_password(password)
+            user.save()
+            logger.info("password_reset_success", username=user.username)
+            return Response(
+                {'detail': 'Contraseña restablecida exitosamente.'},
+                status=status.HTTP_200_OK
+            )
+        except (User.DoesNotExist, ValueError):
+            return Response(
+                {'detail': 'El enlace es inválido o ha expirado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )

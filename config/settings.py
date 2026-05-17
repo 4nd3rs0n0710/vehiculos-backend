@@ -152,3 +152,6 @@ EMAIL_USE_TLS       = True
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = f'Monitoring Innovation <{EMAIL_HOST_USER}>'
+
+# Token de reset válido por 24 horas
+PASSWORD_RESET_TIMEOUT = 86400
