@@ -2,7 +2,7 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 import structlog
-
+import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='dev-secret-key-change-in-prod')
@@ -143,3 +143,12 @@ structlog.configure(
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
 )
+
+# Configuración de email con Gmail SMTP
+EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST          = 'smtp.gmail.com'
+EMAIL_PORT          = 587
+EMAIL_USE_TLS       = True
+EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL  = f'Monitoring Innovation <{EMAIL_HOST_USER}>'

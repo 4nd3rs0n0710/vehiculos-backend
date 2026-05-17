@@ -3,6 +3,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework import status
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from smtplib import SMTPAuthenticationError, SMTPException
+
+
 from .serializers import RegisterSerializer, UserProfileSerializer
 from .models import User
 import structlog
@@ -37,8 +46,30 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class LoginView(TokenObtainPairView):
-    """Endpoint de login que retorna access token, refresh token y rol."""
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username', '')
+        cache_key = f'login_attempts_{username}'
+        attempts = cache.get(cache_key, 0)
+
+        # Bloquear si supera 5 intentos
+        if attempts >= 5:
+            return Response(
+                {'detail': 'Cuenta bloqueada temporalmente. Intenta en 5 minutos.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            # Login exitoso — limpia el contador
+            cache.delete(cache_key)
+        else:
+            # Login fallido — incrementa el contador (expira en 5 minutos)
+            cache.set(cache_key, attempts + 1, timeout=300)
+
+        return response
 
 
 class RegisterView(generics.CreateAPIView):
@@ -55,3 +86,37 @@ class ProfileView(APIView):
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
+    
+class PasswordRecoveryView(APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        
+        try:
+            user = User.objects.get(email=email)
+            token = default_token_generator.make_token(user)
+            uid   = urlsafe_base64_encode(force_bytes(user.pk))
+            reset_url = f'http://localhost:3000/reset-password?uid={uid}&token={token}'
+            
+            try:
+                send_mail(
+                    subject='Recuperación de contraseña — Monitoring Innovation',
+                    message=f'Haz clic en el siguiente enlace para restablecer tu contraseña:\n\n{reset_url}\n\nEste enlace expira en 24 horas.',
+                    from_email=None,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+                logger.info("password_recovery_sent", email=email)
+            except SMTPAuthenticationError:
+                logger.error("smtp_auth_error", email=email)
+            except SMTPException as e:
+                logger.error("smtp_error", email=email, error=str(e))
+                
+        except User.DoesNotExist:
+            logger.info("password_recovery_attempted", email=email)
+
+        return Response(
+            {'detail': 'Si el correo existe, recibirás un enlace de recuperación.'},
+            status=status.HTTP_200_OK
+        )
