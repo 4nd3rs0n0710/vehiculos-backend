@@ -22,29 +22,30 @@ logger = structlog.get_logger()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Serializer personalizado que agrega el rol y username
-    al payload del JWT y a la respuesta del login.
-    
-    Esto evita que el frontend tenga que hacer una segunda
-    llamada para obtener el rol del usuario.
-    """
-
-    @classmethod
-    def get_token(cls, user):
-        # Agrega claims personalizados al token JWT
-        token = super().get_token(user)
-        token['role']     = user.role
-        token['username'] = user.username
-        return token
-
     def validate(self, attrs):
+        # Permite login con email o username
+        username_or_email = attrs.get('username', '')
+        
+        # Si contiene @ busca por email
+        if '@' in username_or_email:
+            try:
+                user = User.objects.get(email=username_or_email)
+                attrs['username'] = user.username
+            except User.DoesNotExist:
+                pass
+
         data = super().validate(attrs)
-        # Incluye rol y username en la respuesta del login
         data['role']     = self.user.role
         data['username'] = self.user.username
         logger.info("user_login", username=self.user.username, role=self.user.role)
         return data
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['role']     = user.role
+        token['username'] = user.username
+        return token
 
 
 class LoginView(TokenObtainPairView):

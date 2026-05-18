@@ -7,22 +7,31 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, required=True, validators=[validate_password]
     )
-    password2 = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'password2', 'role')
-        extra_kwargs = {'role': {'required': False}}
-
-    def validate(self, attrs):
-        if attrs['password'] != attrs.pop('password2'):
-            raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})
-        return attrs
+        fields = ('email', 'password', 'first_name', 'last_name', 'role')
+        extra_kwargs = {
+            'role': {'required': False},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+        }
 
     def create(self, validated_data):
+        # Genera username automáticamente desde el email
+        email = validated_data.get('email', '')
+        username = email.split('@')[0]
+        
+        # Evita duplicados agregando número si ya existe
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base_username}{counter}'
+            counter += 1
+
+        validated_data['username'] = username
         user = User.objects.create_user(**validated_data)
         return user
-
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
