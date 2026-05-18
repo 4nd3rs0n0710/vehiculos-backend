@@ -156,4 +156,4 @@ Cada petición HTTP es registrada con structlog incluyendo:
 
 El backend está desplegado en **Render**.
 
-🔗 URL de producción: `<url-render>`
+🔗 URL de producción: 'https://vehiculos-backend-l2ut.onrender.com'
