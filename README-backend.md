@@ -40,6 +40,7 @@ vehiculos-backend/
 │   ├── middleware.py    # Logging de peticiones HTTP
 │   └── wsgi.py
 ├── Dockerfile
+├── entrypoint.sh        # Migraciones automáticas al iniciar
 ├── manage.py
 └── requirements.txt
 ```
@@ -92,7 +93,7 @@ vehiculos-backend/
 
 1. Clonar el repositorio:
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/4nd3rs0n0710/vehiculos-backend
 cd vehiculos-project
 ```
 
@@ -152,8 +153,16 @@ Cada petición HTTP es registrada con structlog incluyendo:
 
 ---
 
+## ⚠️ Nota sobre recuperación de contraseña en producción
+
+El envío de emails para recuperación de contraseña funciona correctamente en entorno local.
+En producción (Render free tier), las conexiones SMTP salientes están bloqueadas por la plataforma.
+Esta funcionalidad puede verificarse levantando el proyecto localmente con Docker.
+
+---
+
 ## 🌐 Despliegue
 
 El backend está desplegado en **Render**.
 
-🔗 URL de producción: 'https://vehiculos-backend-l2ut.onrender.com'
+🔗 URL de producción: https://vehiculos-backend-l2ut.onrender.com
